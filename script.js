@@ -1,10 +1,11 @@
 function connectWebSocket() {
-  // Determine the correct WebSocket URL dynamically
+  // ✅ Get API URL from environment variable OR fallback to current domain
   const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
 
-  // Ensure correct WebSocket protocol (`ws://` for HTTP, `wss://` for HTTPS)
+  // ✅ Ensure correct WebSocket protocol (`wss://` for HTTPS, `ws://` for HTTP)
   const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
 
+  // ✅ Create WebSocket connection
   const socket = new WebSocket(`${WS_BASE_URL}/chat`);
 
   socket.onopen = function () {
@@ -17,13 +18,13 @@ function connectWebSocket() {
     try {
       let data = JSON.parse(event.data);
 
-      // ✅ Remove the loading animation when AI response is received
+      // ✅ Remove loading animation if present
       let loadingDiv = document.getElementById("loading-message");
       if (loadingDiv) {
         loadingDiv.remove();
       }
 
-      // ✅ Check if this is Sentiment Data
+      // ✅ Check if the response contains Sentiment Analysis Data
       if (
         data.Positive !== undefined &&
         data.Negative !== undefined &&
@@ -35,14 +36,14 @@ function connectWebSocket() {
         return;
       }
 
-      // ✅ Check if response contains plans
+      // ✅ Check if response contains Telecom Plans
       if (data.plans && Array.isArray(data.plans) && data.plans.length > 0) {
         console.log("✅ Plans Data Received:", data.plans);
         displayMessage(JSON.stringify({ plans: data.plans }), "bot-message");
         return;
       }
 
-      // ✅ Otherwise, handle as normal AI response
+      // ✅ Otherwise, handle normal AI response
       let aiResponse = data.candidates
         ? data.candidates[0].content.parts[0].text
         : event.data;
@@ -76,8 +77,6 @@ function connectWebSocket() {
 }
 
 // ✅ Initialize WebSocket Connection
-const socket = connectWebSocket();
-
 const socket = connectWebSocket();
 
 // ✅ Ensure chatSessions is initialized globally
