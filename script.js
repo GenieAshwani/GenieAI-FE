@@ -1,16 +1,5 @@
 function connectWebSocket() {
-  // ✅ Get API URL from environment variable OR fallback to current domain
-  const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
-
-  // ✅ Ensure correct WebSocket protocol (`wss://` for HTTPS, `ws://` for HTTP)
-  const WS_BASE_URL = API_BASE_URL.replace(/^http/, "ws");
-
-  // ✅ Create WebSocket connection
-  const socket = new WebSocket(`${WS_BASE_URL}/chat`);
-
-  socket.onopen = function () {
-    console.log("✅ Connected to WebSocket:", `${WS_BASE_URL}/chat`);
-  };
+  const socket = new WebSocket("wss://genieai-be-1.onrender.com/chat");
 
   socket.onmessage = function (event) {
     console.log("🔹 Received WebSocket Message: ", event.data);
@@ -18,13 +7,13 @@ function connectWebSocket() {
     try {
       let data = JSON.parse(event.data);
 
-      // ✅ Remove loading animation if present
+      // ✅ Remove the loading animation when AI response is received
       let loadingDiv = document.getElementById("loading-message");
       if (loadingDiv) {
         loadingDiv.remove();
       }
 
-      // ✅ Check if the response contains Sentiment Analysis Data
+      // ✅ Check if this is Sentiment Data
       if (
         data.Positive !== undefined &&
         data.Negative !== undefined &&
@@ -36,14 +25,14 @@ function connectWebSocket() {
         return;
       }
 
-      // ✅ Check if response contains Telecom Plans
+      // ✅ Check if response contains plans
       if (data.plans && Array.isArray(data.plans) && data.plans.length > 0) {
         console.log("✅ Plans Data Received:", data.plans);
         displayMessage(JSON.stringify({ plans: data.plans }), "bot-message");
         return;
       }
 
-      // ✅ Otherwise, handle normal AI response
+      // ✅ Otherwise, handle as normal AI response
       let aiResponse = data.candidates
         ? data.candidates[0].content.parts[0].text
         : event.data;
@@ -69,6 +58,75 @@ function connectWebSocket() {
     }
   };
 
+  socket.onmessage = function (event) {
+    console.log("🔹 Received WebSocket Message: ", event.data);
+
+    try {
+      let data = JSON.parse(event.data);
+
+      // ✅ Step 1: Ensure valid JSON response
+      if (!data) {
+        console.warn("⚠️ Empty response received!");
+        return;
+      }
+
+      // ✅ Remove the loading spinner when the response arrives
+      let loadingDiv = document.getElementById("loading-message");
+      if (loadingDiv) {
+        loadingDiv.remove();
+      }
+
+      // ✅ Step 2: Handle Sentiment Analysis Data
+      if (
+        data.Positive !== undefined &&
+        data.Negative !== undefined &&
+        data.Neutral !== undefined
+      ) {
+        console.log("✅ Sentiment Report Detected!", data);
+        displayMessage("✅ Sentiment Report Generated.", "bot-message");
+        showSentimentChart(data);
+        return;
+      }
+
+      // ✅ Step 3: Handle Telecom Plan Data
+      if (data.plans && Array.isArray(data.plans) && data.plans.length > 0) {
+        console.log("✅ Telecom Plans Received:", data.plans);
+
+        let formattedPlans = { plans: data.plans };
+        displayMessage(JSON.stringify(formattedPlans), "bot-message");
+        return;
+      }
+
+      // ✅ Step 4: Handle AI Classification Responses
+      if (data.candidates) {
+        let aiResponse =
+          data.candidates[0]?.content?.parts[0]?.text?.trim() || "";
+
+        if (aiResponse.toLowerCase() === "telecom") {
+          console.log("🛑 Ignoring Classification Data: ", aiResponse);
+          return;
+        }
+
+        console.log("✅ AI Response:", aiResponse);
+        displayMessage(aiResponse, "bot-message");
+        return;
+      }
+
+      // ✅ Step 5: Default Fallback → Show raw JSON if no known keys exist
+      console.warn("⚠️ Unexpected Response Format:", data);
+      displayMessage(event.data, "bot-message");
+    } catch (error) {
+      console.error("❌ Error parsing WebSocket response:", error);
+
+      let loadingDiv = document.getElementById("loading-message");
+      if (loadingDiv) {
+        loadingDiv.remove(); // ✅ Remove spinner if error occurs
+      }
+
+      displayMessage(event.data, "bot-message");
+    }
+  };
+
   socket.onerror = function (error) {
     console.error("❌ WebSocket Error: ", error);
   };
@@ -76,7 +134,6 @@ function connectWebSocket() {
   return socket;
 }
 
-// ✅ Initialize WebSocket Connection
 const socket = connectWebSocket();
 
 // ✅ Ensure chatSessions is initialized globally
